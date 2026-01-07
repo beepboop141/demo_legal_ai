@@ -268,6 +268,7 @@ def login_page():
             st.rerun()
         else:
             st.error("Λάθος κωδικός. Δεν επιτρέπεται η πρόσβαση." if is_greek else "Incorrect password. Access denied.")
+
 def main_app():
     is_greek = st.session_state.ui_language == "el"
     
@@ -295,10 +296,8 @@ def main_app():
                 st.session_state.ui_language = "el"
                 st.rerun()
         st.markdown("---")
-        
-        # --- FIX STARTS HERE ---
-        
-        # 1. Define Translation Maps
+                
+        # Define Translation Maps
         jurisdiction_map = {
             "Greek": "Ελληνικό",
             "USA (Federal)": "Αμερικανικό (Ομοσπονδιακό)",
@@ -315,7 +314,7 @@ def main_app():
             "EU Law": "Δίκαιο της ΕΕ"
         }
 
-        # 2. Use format_func to change display text based on language
+        # Use format_func to change display text based on language
         jurisdiction = st.selectbox(
             "Δικαιοδοσία" if is_greek else "Jurisdiction", 
             ["Greek", "USA (Federal)", "UK", "European Union"],
@@ -328,12 +327,12 @@ def main_app():
              "Intellectual Property", "Employment Law", "EU Law"],
             format_func=lambda x: specialty_map.get(x, x) if is_greek else x
         )
-        
-        # --- FIX ENDS HERE ---
-        
-        uploaded_file = st.file_uploader(
-            "Ανέβασμα Νομικού Εγγράφου (PDF)" if is_greek else "Upload Legal Document (PDF)",
-            type="pdf"
+                
+        # FIXED: Multiple file upload on single line
+        uploaded_files = st.file_uploader(
+            "Ανέβασμα Νομικών Εγγράφων (PDF)" if is_greek else "Upload Legal Documents (PDF)",
+            type="pdf",
+            accept_multiple_files=True
         )
         
         # Advanced options
@@ -344,7 +343,7 @@ def main_app():
                 value="Standard Analysis"
             )
             
-            # Logic for multiselect options (Existing logic was actually okay here, but good to double check)
+            # Logic for multiselect options
             if is_greek:
                 focus_options = ["Διαδικαστικά Ελαττώματα", "Ζητήματα Καταλογισμού", "Δόλος", 
                                "Ανάλυση Στοιχείων", "Νομολογία", "Συγκριτικό Δίκαιο"]
@@ -364,7 +363,7 @@ def main_app():
             st.session_state.logged_in = False
             st.rerun()
 
-    # Main Chat Interface (Rest of function remains the same...)
+    # Main Chat Interface
     st.title("Draco AI")
     
     if "messages" not in st.session_state:
@@ -407,22 +406,39 @@ def main_app():
                     depth_instruction = "\n\nΟΔΗΓΙΑ ΒΑΘΟΥΣ: Παρέχεις συνοπτική στρατηγική αξιολόγηση εστιάζοντας μόνο σε κρίσιμα ζητήματα." if detected_lang == "el" else "\n\nDEPTH INSTRUCTION: Provide concise strategic assessment focusing on critical issues only."
                     system_instruction += depth_instruction
                 
-                contents = [prompt]
+                # FIXED: Build conversation history for context
+                conversation_contents = []
                 
-                # Handle file upload
-                if uploaded_file:
-                    file_bytes = uploaded_file.read()
-                    contents.insert(0, types.Part.from_bytes(
-                        data=file_bytes, 
-                        mime_type="application/pdf"
-                    ))
-                    doc_instruction = "\n\nΑΝΑΛΥΣΗ ΕΓΓΡΑΦΟΥ: Έχει ανέβει έγγραφο. Εφάρμοσε το Πρωτόκολλο Ανάλυσης Εγγράφων: εξάγαγε ημερομηνίες, προσδιόρισε διαδικαστικό στάδιο, επισήμανε ελαττώματα, διαχώρισε ισχυριζόμενα από αποδεδειγμένα γεγονότα, και φίλτραρε για νομική συνάφεια." if detected_lang == "el" else "\n\nDOCUMENT ANALYSIS: A document has been uploaded. Apply the Document Analysis Protocol: extract dates, identify procedural stage, flag defects, separate alleged from proven facts, and filter for legal relevance."
+                # Add previous messages to maintain context
+                for msg in st.session_state.messages[:-1]:  # Exclude the current message we just added
+                    if msg["role"] == "user":
+                        conversation_contents.append({"role": "user", "parts": [msg["content"]]})
+                    elif msg["role"] == "assistant":
+                        conversation_contents.append({"role": "model", "parts": [msg["content"]]})
+                
+                # Build the current message content with files if present
+                current_parts = []
+                
+                # FIXED: Handle multiple file uploads
+                if uploaded_files:
+                    for uploaded_file in uploaded_files:
+                        file_bytes = uploaded_file.read()
+                        current_parts.append(types.Part.from_bytes(
+                            data=file_bytes, 
+                            mime_type="application/pdf"
+                        ))
+                    
+                    doc_instruction = f"\n\nΑΝΑΛΥΣΗ ΕΓΓΡΑΦΩΝ: Έχουν ανέβει {len(uploaded_files)} έγγραφα. Εφάρμοσε το Πρωτόκολλο Ανάλυσης Εγγράφων: εξάγαγε ημερομηνίες, προσδιόρισε διαδικαστικό στάδιο, επισήμανε ελαττώματα, διαχώρισε ισχυριζόμενα από αποδεδειγμένα γεγονότα, και φίλτραρε για νομική συνάφεια." if detected_lang == "el" else f"\n\nDOCUMENT ANALYSIS: {len(uploaded_files)} documents have been uploaded. Apply the Document Analysis Protocol: extract dates, identify procedural stage, flag defects, separate alleged from proven facts, and filter for legal relevance."
                     system_instruction += doc_instruction
+                
+                # Add the current user prompt
+                current_parts.append(prompt)
+                conversation_contents.append({"role": "user", "parts": current_parts})
 
-                # Call Gemini with optimized prompt
+                # Call Gemini with conversation history
                 response = client.models.generate_content(
                     model="gemini-2.0-flash-exp",
-                    contents=contents,
+                    contents=conversation_contents,
                     config={
                         "system_instruction": system_instruction,
                         "temperature": 0.3,
