@@ -10,7 +10,7 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 APP_PASSWORD = os.getenv("APP_PASSWORD")  
 client = genai.Client(api_key=API_KEY)
 
-st.set_page_config(page_title="LegalGPT Demo", page_icon="⚖️", layout="wide")
+st.set_page_config(page_title="Draco Demo", page_icon="⚖️", layout="wide")
 
 # Initialize language in session state
 if "ui_language" not in st.session_state:
@@ -364,7 +364,7 @@ def main_app():
             st.rerun()
 
     # Main Chat Interface
-    st.title("Draco AI")
+    st.title("Draco")
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
