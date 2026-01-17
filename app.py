@@ -408,13 +408,24 @@ def main_app():
                 
                 # FIXED: Build conversation history for context
                 conversation_contents = []
-                
+
                 # Add previous messages to maintain context
-                for msg in st.session_state.messages[:-1]:  # Exclude the current message we just added
+                for msg in st.session_state.messages[:-1]: 
                     if msg["role"] == "user":
-                        conversation_contents.append({"role": "user", "parts": [msg["content"]]})
+                        conversation_contents.append(
+                            types.Content(
+                                role="user", 
+                                parts=[types.Part.from_text(text=msg["content"])]
+                            )
+                        )
                     elif msg["role"] == "assistant":
-                        conversation_contents.append({"role": "model", "parts": [msg["content"]]})
+                        conversation_contents.append(
+                            types.Content(
+                                role="model", 
+                                parts=[types.Part.from_text(text=msg["content"])]
+                            )
+                        )
+               
                 
                 # Build the current message content with files if present
                 current_parts = []
