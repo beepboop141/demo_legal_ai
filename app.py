@@ -432,7 +432,7 @@ def main_app():
                     system_instruction += doc_instruction
                 
                 # Add the current user prompt
-                current_parts.append(prompt)
+                current_parts.append(types.Part.from_text(text=prompt))
                 conversation_contents.append({"role": "user", "parts": current_parts})
 
                 # Call Gemini with conversation history
