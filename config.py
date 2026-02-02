@@ -17,7 +17,7 @@ APP_ICON = "⚖️"
 PAGE_LAYOUT = "wide"
 
 # Gemini Model Configuration
-GEMINI_MODEL = "gemini-2.0-flash-exp"
+GEMINI_MODEL = "gemini-3-flash-preview"
 GEMINI_CONFIG = {
     "temperature": 0.3,
     "top_p": 0.95,
